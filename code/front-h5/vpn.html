@@ -1,0 +1,991 @@
+<!doctype html>
+<html>
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width,user-scalable=0,initial-scale=1,maximum-scale=1">
+	<meta content="yes" name="apple-mobile-web-app-capable">
+	<meta content="yes" name="apple-touch-fullscreen">
+	<meta content="black" name="apple-mobile-web-app-status-bar-style">
+	<meta content="telephone=no" name="format-detection" />
+	<title>P2PWorld</title>
+	<link rel="stylesheet" href="css/frozen.css">
+	<link rel="stylesheet" href="css/mescroll.min.css">
+	<link rel="stylesheet" type="text/css" href="./css/main.css" />
+	<style type="text/css">
+		.search-bar .search-input {
+			color: #ff6600
+		}
+	</style>
+
+
+	<script src="js/vue.min.js"></script>
+	<script src="js/unpkg.com_index.js"></script>
+	<link rel="stylesheet" href="css/theme-chalk_index.css">
+
+	<script src="./js/jquery.min.js"></script>
+	<script src="./js/qrcode.min.js"></script>
+	<script src="./js/mescroll.min.js" type="text/javascript" charset="utf-8"></script>
+	<script src="./js/md5.js"></script>
+
+
+	<script type="text/javascript">		
+	
+			var DOT_DECIMAL_PLACES = 1000000000000n;
+
+			$(document).ready(function() {
+
+
+				var serverList_ = window.havorld.jsCallAndroidReadMNKServerList();
+				var serverList  = JSON.parse(serverList_);
+				console.log("vpn.hmtl ready " + JSON.stringify(serverList));
+				app.serverListMine = serverList.filter( item => typeof(item.subscriptionType) == "undefined" || item.subscriptionType =="mine" || item.subscriptionType =="");
+				app.serverListShare = serverList.filter( item => item.subscriptionType =="share" );
+				app.serverListSaled = serverList.filter( item => item.subscriptionType =="free" );
+				var serverSelectedID = window.havorld.jsCallAndroidReadMNKSelectedId();
+				app.serverSelectedID = serverSelectedID;
+
+				//console.log("vpn.hmtl ready " + JSON.stringify(app.serverListMine ));
+
+				var vpnRunning = window.havorld.jsCallAndroidReadVpnRunning();
+				app.vpnRunning = vpnRunning;
+
+
+
+				var vpnSharedList = window.havorld.jsCallAndroidReadByKey("vpnSharedList");
+				console.log("vpn.hmtl ready vpnSharedList" + vpnSharedList);
+				vpnSharedList = (vpnSharedList=="" || vpnSharedList=="undefined") ? "[]" : vpnSharedList;
+				app.vpnSharedList = JSON.parse(vpnSharedList);
+
+				var address = window.havorld.jsCallAndroidReadByKey("account_address");
+				app.accountId = address;
+				var network_status = window.havorld.jsCallAndroidReadByKey("network_status");
+
+				if(address!="" && network_status=="connected"){
+					//try_fetch_sharedVpn(address);
+					try_fetch_sharedVpn("5EfQGoxtiURr8JEwhmyNy3ntkDTPsTQeA8RQ2fyrqNjGKHfU");
+					window.havorld.jsCallAndroidRunTask("", "advertiseVpns", 86, "0");
+				}
+
+
+				//$("#serverList").html(serverList);
+
+
+			});
+
+			function advertiseVpns(){
+				window.havorld.jsCallAndroidRunTask("", "advertiseVpns", 86, "0");
+
+			}
+
+			function hexCharCodeToStr(hexCharCodeStr) {
+				var trimedStr = hexCharCodeStr.trim();
+				var rawStr = 
+				trimedStr.substr(0,2).toLowerCase() === "0x"
+				? 
+				trimedStr.substr(2) 
+				: 
+				trimedStr;
+				var len = rawStr.length;
+				if(len % 2 !== 0) {
+					alert("Illegal Format ASCII Code!");
+					return "";
+				}
+				var curCharCode;
+				var resultStr = [];
+				for(var i = 0; i < len;i = i + 2) {
+				curCharCode = parseInt(rawStr.substr(i, 2), 16); // ASCII Code Value
+				resultStr.push(String.fromCharCode(curCharCode));
+				}
+				return resultStr.join("");
+			}
+
+			function Uint8ArrayToString(fileData) {//对应的nodejs  Buffer.from(event.data[2].buffer).toString()
+				var dataString = "";
+				for (var i = 0; i < fileData.length; i++) {
+					dataString += String.fromCharCode(fileData[i]);
+				}
+
+				return dataString
+			}
+
+	</script>
+
+	<script  type="text/javascript">
+
+			//分享给我的
+			function try_fetch_sharedVpn(accountId) {
+				var obj = new FormData();
+				obj.append('to', accountId);
+
+				console.log("11111111111111111111111");
+
+				$.ajax({
+					type: "post",
+					url: "http://211.159.227.141:8080/getVpnShare",
+					contentType: false,
+					data: obj,
+					processData: false,
+					cache: false,
+					success: function (response) {
+						console.log("2222222222222222222222");
+						console.log("vpn.hmtl 1 try_fetch_sharedVpn: " + response.data.vpnList);
+						var sharedVpnList_ =  JSON.parse( response.data.vpnList);
+						var sharedVpnList = sharedVpnList_.map(function(elem){   return JSON.parse(elem.vpnConfig); });
+
+						sharedVpnList.forEach(function(ele) {
+							const index = app.serverListShare.findIndex(e => (e.id == ele.id) );
+							if(index>-1){
+								app.serverListShare.splice(index, 1);
+								app.serverListShare.push(ele);
+							}else{
+								app.serverListShare.push(ele);
+							}
+						});
+
+						console.log("vpn.hmtl 4 try_fetch_sharedVpn: " +  JSON.stringify(app.serverListShare));
+
+
+						//console.log("vpn.hmtl 2 try_fetch_sharedVpn: " +  JSON.stringify(sharedVpnList));
+
+						//sharedVpnList = sharedVpnList.filter(function (e) { return app.serverListShare.findIndex(e2 => (e2.id == e.id) )==-1; })
+						//console.log("vpn.hmtl 3 try_fetch_sharedVpn: " +  JSON.stringify(sharedVpnList));
+						//app.serverListShare.concat(sharedVpnList);
+
+						//
+
+
+
+					},
+					complete: function (response) {
+					console.log("3333333333333333333333333333333");
+
+					},
+					error: function (e) {
+					console.log("44444444444444444444444444");
+						console.log("error");
+
+					},
+
+				});
+
+			}
+
+			function try_fetch_freeVpn() {
+
+			}
+
+
+	</script>
+
+
+	<script  type="text/javascript">
+
+			function vpn_event(type, body) {//这个android关于vpn_event的启动停止等信息
+				console.log("vpn.html receive event_vpn:" + type + "  " + body);
+
+				
+
+			}
+
+
+			//转账任务，结果回调。。要异步等这个 事件发生
+			function task_callback(id, type, param, result) {
+				
+				console.log("vpn.html receive task_callback  type:" + type + "  " + param + "  " + result + '   id:' + id);
+
+				
+
+				if (type == "advertiseVpns") {
+					var advertiseVpns_ = JSON.parse(result);
+					var advertiseVpns = [];
+
+					
+					for(var i1 in advertiseVpns_){
+						var item = advertiseVpns_[i1];
+						//{"user":"5Gme5tp9H1rxKXcG6JrUcu4zzhVv4xNrX6DHevwBTT8764hD","body":["hello world",[2]]}
+						var advpn = {user: item.user, title:item.body[0], slogan:item.body[1], vpn_ids:item.body[2] };
+						advertiseVpns.push(advpn);
+					
+					}
+					app.vpnOnSaleList = advertiseVpns;
+					console.log("vpnOnSaleList  " + JSON.stringify(advertiseVpns));
+					
+				}
+
+				if (type == "getVpninfo") {
+
+					
+					var getVpninfoList_ = JSON.parse(result);	
+					if(id == "toVpnBuy"){	
+						
+						var getVpninfoList = getVpninfoList_.map(function(elem){  
+							//elem.price = elem.price!=null ? BigInt(elem.price) : BigInt(0);
+							elem.priceInt = elem.price!=null ? BigInt(elem.price)/DOT_DECIMAL_PLACES : BigInt(0);
+							elem.priceInt = parseInt(elem.priceInt.toString());
+							 return elem;
+						});
+						
+						app.vpnNftOnSaleList = getVpninfoList;
+					}
+					//console.log("vpnOnSaleList  " + JSON.stringify(advertiseVpns));					
+				}	
+
+				if (type == "useVpn") {
+					//var result = JSON.parse(result);	
+					var vpnNft = JSON.parse(param);					
+
+					app.loading = false;
+					app.buyVpnShow = false;
+					if(id == "submitVpnBuy"){							
+						if(result == "200"){
+							app.dialogShow = false;	
+							var server = {"id":"","configType":"VLESS","configVersion":3,"outboundBean":{"mux":{"concurrency":8,"enabled":false},"protocol":"vless","settings":{"vnext":[{"address":"","port":8080,"users":[{"encryption":"none","flow":"","id":"","level":8,"security":"auto"}]}]},"streamSettings":{"network":"tcp","security":"tls","tcpSettings":{"header":{"type":"none"}},"tlsSettings":{"allowInsecure":false,"serverName":""}},"tag":"proxy"},"remarks":"","subscriptionId":vpnNft.id};
+							app.serverSelected = server;
+							app.serverListMine.push(server);
+							//this.dialogrecShow=true;
+						}else{
+							app.dialogShow = true;							
+							app.dialogContent = "激活失败，付款未成功。"
+						}
+					}
+				//console.log("vpnOnSaleList  " + JSON.stringify(advertiseVpns));					
+				}
+
+				
+			};
+
+
+			function event_block(type, body) {
+				
+				console.log("vpn.html event_blockk  type:" + type + "  " + body );
+
+				if (type == "network_status") {
+					if(body=="connected"){
+						try_fetch_sharedVpn("5EfQGoxtiURr8JEwhmyNy3ntkDTPsTQeA8RQ2fyrqNjGKHfU");
+						window.havorld.jsCallAndroidRunTask("", "advertiseVpns", 86, "0");
+					}
+				}
+
+
+				
+
+				if (type == "eventInfoVpnCreated") { //所有转账事件
+
+					var dataList = JSON.parse(body);		
+
+					var address = dataList[0];
+					var addr_ = window.havorld.jsCallAndroidReadByKey("account_address");
+					
+					if(address == addr_){
+						var vpnId = dataList[1];
+						var tokenMd5 = hexCharCodeToStr(dataList[2]);
+						var clientCfg =  hexCharCodeToStr(dataList[3]);
+
+						var mnemonic = window.havorld.jsCallAndroidReadByKey("account_mnemonic");
+						var key = hex_md5(mnemonic).substr(0, 8);//用肋记词的hash当key, 最后使用的连接账号就用这个key作为账号的一部分
+
+
+						clientCfg = clientCfg.replace("{{PASSWORD}}",key);
+						clientCfg = "vmess://"+ btoa(clientCfg);
+						console.log("clientCfg:"+  clientCfg);
+
+						window.havorld.jsCallAndroidAddVpnByCfg(clientCfg, "");
+
+						var serverList_ = window.havorld.jsCallAndroidReadMNKServerList();
+						var serverList  = JSON.parse(serverList_);
+						app.serverListMine = serverList;
+
+						/*
+						var server = JSON.parse(clientCfg); //{"id":"","configType":"VLESS","configVersion":3,"outboundBean":{"mux":{"concurrency":8,"enabled":false},"protocol":"vless","settings":{"vnext":[{"address":"","port":8080,"users":[{"encryption":"none","flow":"","id":"","level":8,"security":"auto"}]}]},"streamSettings":{"network":"tcp","security":"tls","tcpSettings":{"header":{"type":"none"}},"tlsSettings":{"allowInsecure":false,"serverName":""}},"tag":"proxy"},"remarks":"","subscriptionId":vpnNft.id};
+						console.log("clientCfg:"+  clientCfg);
+
+						var loadingServerList = app.serverListMine.filter( item => item.subscriptionId === vpnId );//应该只有一条，					
+
+						console.log("loadingServerList:"+ JSON.stringify(loadingServerList));
+						
+
+						console.log("clientCfg:"+ clientCfg);
+							*/
+
+					}
+					
+				}
+
+			}
+
+
+
+	</script>
+
+
+
+</head>
+
+<body>
+<div id="app" class="container">
+	<div id="mescroll" class="main-wrapper mescroll">
+
+		<div id="app_div" class="main-content">
+
+
+			<div class="module_container module_margin explain">
+				<h3>网络安全与抗审查</h3>
+				你有VPN服务器就可创建VPN，没有VPN服务器可以让他人与你共享VPN，也可以试用或购买自由交易市场里的VPN。
+			</div>
+
+			<div  id="index" class="module_container module_margin">
+				<div class="flex-row app_header">
+					<!--<a   @click="newForm()">创建</a><br/> -->
+				</div>
+
+				<ul v-if="serverListMine.length > 0  || serverListShare.length > 0 ||  serverListSaled.length > 0">
+					<li class="flex-row" v-for="item in serverListMine">
+						<div class="app_item">						
+							<div v-if="item.id == ''">
+								<img  width="30" src="img/loading.gif" />请等1到2分钟等待配置完成。							
+							</div>
+							<div v-else>
+								{{ item.remarks || '-' }}
+								<br />
+								{{ item.outboundBean.settings.vnext[0].address + ":" + item.outboundBean.settings.vnext[0].port}}								
+							</div>
+
+							<div class="flex-row flex-around item_margin" style="float:left;">
+								评分--评价-----------<a @click="toDeleteServer(item.id)">忘记</a>
+							</div>
+						</div>
+						<div id='type'>
+							<div>
+								<button class="ui-btn ui-btn-primary"  v-if="serverSelectedID===item.id">已选用</button>
+								<button class="ui-btn ui-btn-primary"  v-else	@click="selectServer(item.id)">选用</button>
+								<br />
+								<button  class="ui-btn"  @click="toVpnShare(item)">
+									分享({{vpnSharedList.filter(function (e) { return (e.uuid== item.id); }).length}})
+								</button>
+							</div>
+						</div>
+					</li>
+
+					<li class="flex-row" v-for="item in serverListShare">
+						<div class="app_item">
+							<div>
+								{{ item.remarks || '-' }}
+								<br />
+								{{ item.outboundBean.settings.vnext[0].address + ":" + item.outboundBean.settings.vnext[0].port}}
+							</div>
+
+							<div class="flex-row flex-around item_margin" style="float:left;">
+								评分--评价-----------<a @click="editServer(item)">修改</a>-<a @click="toDeleteServer(item.id)">删除</a>
+							</div>
+						</div>
+						<div id='type'>
+							<div>
+								<button class="ui-btn ui-btn-primary"  v-if="serverSelectedID===item.id">已选用</button>
+								<button class="ui-btn ui-btn-primary"  v-else	@click="selectServer(item.id)">选用</button>
+								<br />
+								<button  class="ui-btn"  >
+									&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;&nbsp;&nbsp;&nbsp;
+								</button>
+							</div>
+						</div>
+					</li>
+
+					<!--广告中在卖的 -->
+					<!--vpnOnSaleList  [{"user":"5Gme5tp9H1rxKXcG6JrUcu4zzhVv4xNrX6DHevwBTT8764hD","slogan":"hello world","vpn_ids":[2]},{"user":"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","slogan":"id2 is fast","vpn_ids":[2,0]}]-->
+					<li class="flex-row" v-for="item in vpnOnSaleList">
+						<div class="app_item">
+							<div>
+								{{ item.title || '-' }}
+								<br />
+								{{ item.slogan}}
+							</div>
+
+							<div class="flex-row flex-around item_margin" style="float:left;">
+								评分--评价-----------
+							</div>
+						</div>
+						<div id='type'>
+							<div>
+								<button class="ui-btn ui-btn-primary"  @click="toVpnBuy(item)">激活</button>
+								<br />
+								<button  class="ui-btn"  >
+									&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;&nbsp;&nbsp;&nbsp;
+								</button>
+							</div>
+						</div>
+					</li>
+
+					<!--
+					<li class="flex-row" >
+						<div><button class="ui-btn ui-btn-primary"  onclick="advertiseVpns();">刷新</button></div>
+					</li>
+					-->
+
+				</ul>
+
+				<li v-else class="will_done">你没有可用VPN：如果你有VPN服务器，你自己创建；也可以让朋友给你分享，也可以去试用或购买</li>
+
+
+			</div>
+
+			<div>
+				<el-dialog title="VPN/链式代理-配置" :visible.sync="dialogrecShow" :append-to-body="true" width="100%">
+					<el-tabs v-model="activeName" @tab-click="handleClick">
+						<el-tab-pane label="VPN服务" name="first">
+							<div v-if="recommendkey1">
+								<div>
+									<div>
+										<label>
+											CID/URL：
+										</label>
+										<input type="text"  v-model="serverSelected.remarks"  placeholder="vpn name">
+									</div>
+									<div>
+										<label>
+											标题：
+										</label>
+										<input type="text"  v-model="serverSelected.outboundBean.settings.vnext[0].users[0].id"  placeholder="owner/user">
+									</div>
+									<div>
+										<label>
+											副标题：
+										</label>
+										<input type="text"  v-model="serverSelected.outboundBean.settings.vnext[0].address"   placeholder="域名/IP">
+									</div>
+									<div>
+										<label>
+											推荐理由：
+										</label>
+										<input type="number"  v-model="serverSelected.outboundBean.settings.vnext[0].port"   placeholder="" style="width:100px;">
+									</div>
+									<br></br>
+									<button @click="saveServer()" class="ui-btn-lg ui-btn-primary">
+										保存
+									</button>
+								</div>
+							</div>
+						</el-tab-pane>
+						<el-tab-pane label="链式代理" name="second">
+							<div v-if="recommendkey2">
+								<p line-height:18px>
+									<br>
+									链式代理，可以增加网络安全，防止网络IP被跟踪！
+									开发中。。
+									<br>
+									<br>
+									<br>
+								</p>
+							</div>
+						</el-tab-pane>
+					</el-tabs>
+				</el-dialog>
+
+
+				<el-dialog title="VPN共享" :visible.sync="shareVpnShow" :append-to-body="true" width="100%">
+					<div>
+						<div>
+							<div>
+								<label>
+									VPN名称：
+								</label>
+								{{ serverSelected.remarks || '-' }}
+							</div>
+							<div>
+								<label>
+									VPN地址：
+								</label>
+								{{ serverSelected.outboundBean.settings.vnext[0].address + ":" + serverSelected.outboundBean.settings.vnext[0].port}}
+							</div>
+
+							<table class="followers_list ui-table ui-border-tb">
+								<thead>
+								<tr style="background-color: #00a5e0; color: white; font-weight: bold;">
+									<th>用户地址</th>
+									<th>流量限制</th>
+									<th>-</th>
+								</tr>
+								</thead>
+								<tbody>
+								<tr v-for="item in recommendList">
+									<td>{{ addrBrief(item.user) }}</td>
+									<td>-M/天</td>
+									<td class="table_money">
+										<button class="ui-btn ui-btn-primary"  v-if="vpnSharedList.filter(function (e) { return (e.to == item.user  && e.uuid== serverSelected.id); }).length != 0"  @click="cancelVpnShare(item.user)">已共享</button>
+										<button class="ui-btn ui-btn-primary"  v-else	@click="submitVpnShare(item.user)">共享</button>
+									</td>
+								</tr>
+								</tbody>
+							</table>
+
+
+
+							<br></br>
+							<button  class="ui-btn-lg ui-btn-primary" @click="shareVpnShow=false">
+								关闭
+							</button>
+						</div>
+					</div>
+				</el-dialog>
+
+
+				<el-dialog title="VPN购买/激活" :visible.sync="buyVpnShow" :append-to-body="true" width="100%">
+					<div>
+						<div>
+							<div>
+								<label>
+								</label>
+								{{ vpnOnSaleSelected.title || '-' }}
+							</div>
+							<div>
+								<label>
+									说明：
+								</label>
+								{{ vpnOnSaleSelected.slogan}}
+							</div>
+
+							<table class="followers_list ui-table ui-border-tb">
+								<thead>
+								<tr style="background-color: #00a5e0; color: white; font-weight: bold;">
+									<th>编号</th>
+									<th>带宽</th>
+									<th>价格</th>
+									<th>-</th>
+								</tr>
+								</thead>
+								<tbody>
+									<tr v-for="item in vpnNftOnSaleList">
+										<td>{{ item.id }}</td>
+										<td>{{ item.title }}</td>
+										<td>{{ item.priceInt }}</td>
+										<td class="table_money">
+											<button class="ui-btn ui-btn-primary" 	@click="submitVpnBuy(item)">激活</button>
+										</td>
+									</tr>
+								</tbody>
+							</table>
+
+
+
+							<br></br>
+							<button  class="ui-btn-lg ui-btn-primary" @click="shareVpnShow=false">
+								关闭
+							</button>
+						</div>
+					</div>
+				</el-dialog>
+
+
+
+				<div class="ui-dialog" :class="{ show: dialogShow }">
+					<div class="ui-dialog-cnt">
+						<div class="ui-dialog-bd">
+							<h3 v-if="!loading">提示</h3>
+							<img v-else width="30" src="img/loading.gif" />
+							<p>{{ dialogContent }}</p>
+						</div>
+						<div v-if="!loading" class="ui-dialog-ft">
+							<button type="button" data-role="button" @click="dialogShow=false">确定</button>
+						</div>
+					</div>
+				</div>
+
+
+				<div class="ui-dialog" :class="{ show: twiceDialogShow }">
+					<div class="ui-dialog-cnt">
+						<div class="ui-dialog-bd">
+							<h3>提示</h3>
+							<p>确定要删除？</p>
+						</div>
+						<div class="ui-dialog-ft">
+							<button type="button" data-role="button" @click="deleteServer">确定</button>
+							<button type="button" data-role="button" @click="twiceDialogCancel">取消</button>
+						</div>
+					</div>
+				</div>
+
+			</div>
+			<div class="module_container module_margin explain">
+				<a>Web3之门白皮书之VPN自由交易市场：</a>VPN一键共享,VPN自由交易市场。结合VPN打造综合安全搞审查平台！<br/>
+
+			</div>
+
+
+
+
+
+
+
+
+
+
+		</div>
+
+
+	</div>
+
+
+</div>
+
+<script>
+
+		var app = new Vue({
+			el: '#app',
+			data: {
+				dialogrecShow: false,
+				activeName: 'first',
+				recommendkey1: true,
+				recommendkey2: false,
+				twiceDialogShow: false,
+				dialogShow: false,
+				dialogContent: "",
+				loading: false,
+
+
+
+				shareVpnShow: false,
+				buyVpnShow: false,
+				recommendList: [],//下级用户列表
+				vpnSharedList: [],//已经购买，但还没激活的，购买时卖家送的或是上级送的。 （购买时，签名者：卖家，签名内容：购买的账户）
+				vpnOnSaleList: [], //系统推荐过来的，还没购买的。（买与激活是同步的）
+				vpnOnSaleSelected: {},
+				vpnNftOnSaleList: [],//一个广告下面的所有vpn 
+
+
+
+				accountId: '',
+				serverSelectedID: '',//vpn的当前工作server
+				serverSelectedToDelete: '',
+				vpnRunning: false,
+				serverSelected: {"id":"","configType":"VLESS","configVersion":3,"outboundBean":{"mux":{"concurrency":8,"enabled":false},"protocol":"vless","settings":{"vnext":[{"address":"","port":8080,"users":[{"encryption":"none","flow":"","id":"","level":8,"security":"auto"}]}]},"streamSettings":{"network":"tcp","security":"tls","tcpSettings":{"header":{"type":"none"}},"tlsSettings":{"allowInsecure":false,"serverName":""}},"tag":"proxy"},"remarks":"","subscriptionId":""},
+				serverListMine: [],  //已经激活的VPN，自己mint的
+				serverListShare: [], //已经激活的VPN，别人送的的
+				serverListSaled: []   //已经激活的VPN，购买的
+			},
+			computed : {
+
+
+			},
+			mounted: function() {
+			},
+
+			methods: {
+				addrBrief: function (addr) {
+					return addr.substring(0, 12) + '......' + addr.substring(40);
+
+				},
+				handleClick: function (tab, event) {
+					console.log(tab, event);
+					if (tab.name == "first") {
+						this.recommendkey1 = true;
+						this.recommendkey2 = false;
+					} else if (tab.name == "second") {
+						this.recommendkey1 = false;
+						this.recommendkey2 = true;
+					}
+				},
+
+				twiceDialogCancel: function() {
+					this.twiceDialogShow = false;
+
+				},
+
+				newForm: function () {
+					this.serverSelected = {"id":"","configType":"VLESS","configVersion":3,"outboundBean":{"mux":{"concurrency":8,"enabled":false},"protocol":"vless","settings":{"vnext":[{"address":"","port":8080,"users":[{"encryption":"none","flow":"","id":"","level":8,"security":"auto"}]}]},"streamSettings":{"network":"tcp","security":"tls","tcpSettings":{"header":{"type":"none"}},"tlsSettings":{"allowInsecure":false,"serverName":""}},"tag":"proxy"},"remarks":"","subscriptionId":""};
+					this.dialogrecShow=true;
+				},
+				toDeleteServer: function (uuid) {
+					this.serverSelectedToDelete = uuid;
+
+					var count = this.vpnSharedList.filter(function (e) { return (e.uuid== uuid); }).length;
+					if(count >0){
+						this.dialogContent = "存在("+count+")共享，请先取消共享！";
+						this.dialogShow = true;
+						return;
+					}
+
+					if(this.vpnRunning  &&  this.serverSelectedID==uuid ){
+						this.dialogContent = "VPN在运行中，请先关闭再删除！";
+						this.dialogShow = true;
+						return;
+					}
+
+					this.twiceDialogShow = true;
+
+				},
+				deleteServer: function () {
+					var uuid = this.serverSelectedToDelete;
+					console.log('deleteServer:'+uuid);
+					console.log("VPN:"+ this.vpnRunning);
+
+					if(this.vpnRunning  &&  this.serverSelectedID==uuid ){
+						alert("VPN在运行中，请先关闭再删除！");
+					}else{
+						window.havorld.jsCallAndroidRemoveVPNServer(uuid);
+						const index = this.serverListMine.findIndex(e => (e.id == uuid) );
+						if(index>-1){
+							this.serverListMine.splice(index, 1);
+						}
+
+						const index2 = this.serverListShare.findIndex(e => (e.id == uuid) );
+						if(index2>-1){
+							this.serverListShare.splice(index2, 1);
+						}
+
+						const index3 = this.serverListSaled.findIndex(e => (e.id == uuid) );
+						if(index3>-1){
+							this.serverListSaled.splice(index3, 1);
+						}
+
+						console.log("删除成功");
+						this.twiceDialogShow = false;
+					}
+
+				},
+
+				selectServer: function (uuid) {
+					console.log('selectServer:'+uuid);
+					window.havorld.jsCallAndroidSelectVPNeServer(uuid);
+					this.serverSelectedID = uuid;
+
+				},
+
+				toVpnShare : function(serverObj) {
+					this.serverSelected = serverObj;
+					this.shareVpnShow=true;
+				},
+
+				toVpnBuy : function(vpnAd) {
+					this.vpnOnSaleSelected = vpnAd;
+					this.buyVpnShow=true;	
+					this.vpnNftOnSaleList = [];								
+					window.havorld.jsCallAndroidRunTask("toVpnBuy", "getVpninfo", JSON.stringify(vpnAd.vpn_ids), "0");
+				},
+
+				submitVpnBuy: function( vpnNft) {		
+					this.dialogShow	= true;		
+					this.loading	= true;	
+					this.buyVpnShow = false;	
+
+					var mnemonic = window.havorld.jsCallAndroidReadByKey("account_mnemonic");
+					var key = hex_md5(mnemonic).substr(0, 8);;//用肋记词的hash当key, 最后使用的连接账号就用这个key作为账号的一部分
+					console.log("mock key:" + key);
+					var tokenMd5 = hex_md5(key);//现在传过去的是ey的 hash, 也就是 mnemonic  hash的再 hash
+					vpnNft.tokenMd5 = tokenMd5;
+
+					window.havorld.jsCallAndroidRunTask("submitVpnBuy", "useVpn", JSON.stringify(vpnNft), "0");
+				},
+
+				editServer: function (serverObj) {
+					console.log('editServer:'+JSON.stringify(serverObj));
+					this.serverSelected = serverObj;
+					this.dialogrecShow=true;
+				},
+				submitVpnShare: function(addr) {
+					var server = this.serverSelected;
+
+
+					var obj = new FormData();
+					obj.append('from', this.accountId);
+					obj.append('to', addr);
+					obj.append('vpnUuid', server.id);
+					obj.append('vpnConfig', JSON.stringify(server));
+
+					var _self=this; //获取vue实例本身，捕获指针指向
+
+					$.ajax({
+						type: "post",
+						url: "http://211.159.227.141:8080/ipfsVpnShare",
+						contentType: false,
+						data: obj,
+						processData: false,
+						cache: false,
+						success: function (response) {
+							//console.log(response);
+							var sharedConfig = {};
+							sharedConfig.to = addr;
+							sharedConfig.uuid = server.id;
+
+							_self.vpnSharedList.push(sharedConfig);
+							window.havorld.jsCallAndroid("vpnSharedList", JSON.stringify(_self.vpnSharedList));
+							//_self.shareVpnShow=false;
+
+						},
+						complete: function (response) {
+							//_self.shareVpnShow=false;
+
+						},
+						error: function (e) {
+							console.log("error");
+							//_self.shareVpnShow=false;
+
+						},
+
+					});
+
+					//
+				},
+				cancelVpnShare: function(addr) {
+					var serverSelected = this.serverSelected;
+
+					var obj = new FormData();
+					obj.append('from', this.accountId);
+					obj.append('to', addr);
+					obj.append('vpnUuid', serverSelected);
+
+					var _self=this; //获取vue实例本身，捕获指针指向
+
+					$.ajax({
+						type: "post",
+						url: "http://211.159.227.141:8080/ipfsVpnShareRemove",
+						contentType: false,
+						data: obj,
+						processData: false,
+						cache: false,
+						success: function (response) {
+							//console.log(response);
+							const index = _self.vpnSharedList.findIndex(e => (e.to == addr  && e.uuid== serverSelected.id) );
+							_self.vpnSharedList.splice(index, 1);
+							window.havorld.jsCallAndroid("vpnSharedList", JSON.stringify(_self.vpnSharedList));
+							//_self.shareVpnShow=false;
+
+						},
+						complete: function (response) {
+							//_self.shareVpnShow=false;
+
+						},
+						error: function (e) {
+							console.log("error");
+							//_self.shareVpnShow=false;
+
+						},
+
+					});
+
+				},
+				saveServer: function () {
+					console.log('saveServer:'+JSON.stringify(this.serverSelected));
+					if(typeof(this.serverSelected.addedTime) == "undefined"){
+						this.serverSelected.addedTime = new Date().getTime();
+					}
+					window.havorld.jsCallAndroidSaveVPNeServer(this.serverSelected.id, JSON.stringify(this.serverSelected));
+
+
+					var serverList_ = window.havorld.jsCallAndroidReadMNKServerList();
+					var serverList  = JSON.parse(serverList_);
+					this.serverListMine = serverList;
+					//this.serverListMine.push({"id":"","configType":"VLESS","configVersion":3,"outboundBean":{"mux":{"concurrency":8,"enabled":false},"protocol":"vless","settings":{"vnext":[{"address":"","port":8080,"users":[{"encryption":"none","flow":"","id":"","level":8,"security":"auto"}]}]},"streamSettings":{"network":"tcp","security":"tls","tcpSettings":{"header":{"type":"none"}},"tlsSettings":{"allowInsecure":false,"serverName":""}},"tag":"proxy"},"remarks":"","subscriptionId":""});
+
+
+					this.dialogrecShow=false;
+				}
+
+
+
+
+			}
+		})
+
+</script>
+
+
+
+</body>
+
+
+
+
+
+
+
+<script>
+
+	var androidMock = {
+		name: "大毛",
+		makeSound: function(){ alert("喵喵喵"); },
+		jsCallAndroid: function(skey, svalue){ 
+			localStorage.setItem(skey, svalue);
+			console.log("jsCallAndroid "+ skey +":"+svalue);
+		},
+
+		jsCallAndroidReadByKey : function(skey){ 
+			var svalue = localStorage.getItem(skey);
+			console.log("jsCallAndroidReadByKey "+ skey +":"+svalue)
+			return svalue == null ? "" : svalue;
+		},
+
+		jsCallAndroidReadMNKServerList: function(from, to, status){ 
+			return '[{"addedTime":1629022737011,"id":"2ca6b5112e13402d8978db53489c3607","configType":"VLESS","configVersion":3,"outboundBean":{"mux":{"concurrency":8,"enabled":false},"protocol":"vless","settings":{"vnext":[{"address":"pxf.zkhj.cc","port":443,"users":[{"encryption":"none","flow":"xtls-rprx-direct","id":"a9527103-1147-4ae7-9da6-2124828436b5","level":8,"security":"auto"}]}]},"streamSettings":{"network":"tcp","security":"xtls","tcpSettings":{"header":{"type":"none"}},"xtlsSettings":{"allowInsecure":false,"serverName":"pxf.zkhj.cc"}},"tag":"proxy"},"remarks":"pxf.zkhj.cc_VLESS_XTLS/TLS-direct_TCP","subscriptionId":"","subscriptionType":""}]';
+			//localStorage.setItem("jsCallAndroidEventBlock_"+ skey, svalue);
+		},
+
+		jsCallAndroidReadMNKSelectedId: function(){ 
+			var svalue = localStorage.getItem("jsCallAndroidReadMNKSelectedId");
+			return svalue==null ? "" : svalue;
+		},
+
+		jsCallAndroidReadVpnRunning: function(){ 
+			return false;
+		},
+
+		jsCallAndroidSelectVPNeServer: function(uuid){ 
+			//真实android里，如果有在vpn在运行，这里会切换并运行
+			localStorage.setItem("jsCallAndroidReadMNKSelectedId", uuid);
+		},
+
+		jsCallAndroidAddVpnByCfg: function(cfg, uuid){ 
+			//真实android里，如果有在vpn在运行，这里会切换并运行
+			//localStorage.setItem("jsCallAndroidReadMNKSelectedId", uuid);
+		},
+
+		
+
+		jsCallAndroidRunTask: function(id, type, params,status){ 
+			var task_ = {id:id, type:type, params:params, status:status};
+			localStorage.setItem("jsCallAndroidRunTask", JSON.stringify(task_));
+			console.log("jsCallAndroidRunTask (" +id +"):" + type +", "+params +  ", " +status);				
+		},
+
+		jsCallAndroidTaskCallback: function(id, type, params,status){ 
+			var task_ = {id:id, type:type, params:params, status:status};
+			localStorage.setItem("jsCallAndroidRunTask", JSON.stringify(task_));
+			console.log("jsCallAndroidRunTask (" +id +"):" + type +", "+params +  ", " +status);				
+		},
+
+		
+
+	};
+
+	window.havorld = Object.create(androidMock);
+
+	$(document).ready(function () {
+		window.setInterval(function() {
+			var eventlist_ = localStorage.getItem("event_block");
+			localStorage.setItem("event_block", "");
+			var eventlist  = (eventlist_ == null || eventlist_ == "") ? [] : JSON.parse(eventlist_);
+			for(var i=0;i<eventlist.length;i++){
+				console.log("event_block:" + JSON.stringify(eventlist[i]));
+				var teventjson = eventlist[i];
+				event_block(teventjson.type, teventjson.body);
+			};
+
+			var taskCallbackList_ = localStorage.getItem("jsCallAndroidTaskCallback");
+			localStorage.setItem("jsCallAndroidTaskCallback", "");
+			var taskCallbackList  = (taskCallbackList_ == null || taskCallbackList_ == "") ? [] : JSON.parse(taskCallbackList_);
+			for(var i=0;i<taskCallbackList.length;i++){
+				console.log("event_block:" + JSON.stringify(taskCallbackList[i]));
+				var teventjson = taskCallbackList[i];
+				task_callback(teventjson.id, teventjson.type, teventjson.params, teventjson.result);
+			}
+
+
+
+		},1000);
+
+	});
+
+
+
+</script>
+
+</html>

@@ -1,0 +1,66 @@
+html {
+	font-size: 16px;
+	word-break: break-all;
+}
+
+body {
+	padding: 0.625rem;
+}
+
+#qrurltest {
+	font-size: 0.5rem;
+	overflow: auto;
+	margin-bottom: 0.3125rem;
+}
+
+#noSpreadDiv {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	color: #FC0280;
+	font-size: 0.875rem;
+}
+
+#noSpreadDiv .ui-btn {
+	margin-top: 1.25rem;
+	width: 50%;
+}
+
+.explain {
+	margin-top: 1.25rem;
+	font-size: 0.75rem;
+	color: #666666;
+}
+
+#findSpreadDiv {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	color: #FC0280;
+	font-size: 0.875rem;
+}
+
+.qrcode_area {
+	color: #00A5E0;
+	font-size: 0.875rem;
+	margin-top: 0.625rem;
+	text-align: center;
+}
+
+#qrcodeDiv1 {
+	margin-top: 0.625rem;
+	background-color: papayawhip;
+}
+
+#qrcodeDiv2 {
+	margin-top: 0.625rem;
+	background-color: papayawhip;
+}
+
+#beSpreadDiv {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	color: #333;
+	font-size: 0.875rem;
+}
